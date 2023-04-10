@@ -8,7 +8,11 @@ export class AppController {
 
     @Get('start-script')
     async startGrabberScript() {
-        return await this.appService.startScript();
-    }
+        try {
+            await this.appService.startScript();
+        } catch (error) {
+            console.error(`An error occurred in runScript: ${error}`);
+        }
 
+    }
 }

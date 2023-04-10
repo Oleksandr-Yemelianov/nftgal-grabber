@@ -83,6 +83,9 @@ export class AppService {
                     }
                 }
             }
+
+            await this.sleepRandom()
+            await this.startScript()
         } catch (error) {
             console.error(`An error occurred in startScript: ${error}`);
             throw error;
@@ -192,7 +195,7 @@ export class AppService {
     }
 
     async publishSendDataEvent(data) {
-        return this.client.emit('get-parsed-data', {data});
+        return this.client.emit('update-nfts-with-parsed-data-eth', {data});
     }
 
     async sleepForLogin() {
