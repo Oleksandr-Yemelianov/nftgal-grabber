@@ -82,6 +82,16 @@ export class AppService {
                         // Skip error
                     }
                 }
+    
+                await this.publishSendDataEvent({
+                    parsedCollectionMetadata: {
+                        contractAddress,
+                        name: collectionData.collection.name,
+                        logoUrl: collectionData.collection.imageUrl
+                    }
+                })
+                console.log('Parsed Contract Address: ', contractAddress)
+
             }
 
             await this.sleepRandom()
@@ -199,7 +209,8 @@ export class AppService {
     }
 
     async sleepForLogin() {
-        return new Promise((resolve) => setTimeout(resolve, 120000));
+        // return new Promise((resolve) => setTimeout(resolve, 120000));
+        return new Promise((resolve) => setTimeout(resolve, 40000));
     }
 
     async sleepRandom() {
