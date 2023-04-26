@@ -16,6 +16,7 @@ export class AppService {
             this.EXTENSION_METAMASK_DIR,
         );
         const browser = await puppeteer.launch({
+            executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
             args: [
                 `--disable-extensions-except=${pathToExtension}`,
                 `--load-extension=${pathToExtension}`,
@@ -24,13 +25,26 @@ export class AppService {
         });
         try {
             const browserPage = await browser.newPage();
+
             await browserPage.goto(`https://blur.io/`);
 
-
             await this.sleepForLogin();
+
+            await this.blurGrabber(browserPage)
+            await this.sleepRandom()
+
+        } catch (error) {
+            console.error(`An error occurred in startScript: ${error}`);
+            throw error;
+        }
+    }
+
+    async blurGrabber(browserPage) {
+        try {
             const collections = await this.getContractAddressList(browserPage);
 
             for (const contractAddress of collections) {
+                await this.sleepRandom();
                 const collectionData = await this.getBlurData(
                     contractAddress,
                     browserPage,
@@ -82,7 +96,7 @@ export class AppService {
                         // Skip error
                     }
                 }
-    
+
                 await this.publishSendDataEvent({
                     parsedCollectionMetadata: {
                         contractAddress,
@@ -93,12 +107,10 @@ export class AppService {
                 console.log('Parsed Contract Address: ', contractAddress)
 
             }
-
-            await this.sleepRandom()
-            await this.startScript()
+            await this.blurGrabber(browserPage)
+            await this.sleepRandom
         } catch (error) {
-            console.error(`An error occurred in startScript: ${error}`);
-            throw error;
+            // Skip error
         }
     }
 
@@ -209,8 +221,8 @@ export class AppService {
     }
 
     async sleepForLogin() {
-        // return new Promise((resolve) => setTimeout(resolve, 120000));
-        return new Promise((resolve) => setTimeout(resolve, 40000));
+        return new Promise((resolve) => setTimeout(resolve, 120000));
+        // return new Promise((resolve) => setTimeout(resolve, 60000));
     }
 
     async sleepRandom() {
