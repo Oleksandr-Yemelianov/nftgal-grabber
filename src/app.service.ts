@@ -1,34 +1,24 @@
 import {Inject, Injectable} from '@nestjs/common';
-import puppeteer from 'puppeteer';
+import puppeteer, {Browser} from 'puppeteer';
 import {ClientProxy} from '@nestjs/microservices';
 import * as path from 'path';
 
 @Injectable()
 export class AppService {
     private EXTENSION_METAMASK_DIR = 'extensions/metamask';
+    private browserInstance: Browser | null = null;
 
     constructor(@Inject('NFT_MICROSERVICE') private client: ClientProxy) {
     }
 
-    async startScript() {
-        const pathToExtension = path.resolve(
-            process.cwd(),
-            this.EXTENSION_METAMASK_DIR,
-        );
-        const browser = await puppeteer.launch({
-            executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
-            args: [
-                `--disable-extensions-except=${pathToExtension}`,
-                `--load-extension=${pathToExtension}`,
-            ],
-            headless: false,
-        });
+    async startBlurScript() {
         try {
+            const browser = await this.getBrowserInstance(true);
             const browserPage = await browser.newPage();
 
             await browserPage.goto(`https://blur.io/`);
 
-            await this.sleepForLogin();
+            await this.sleepForSpecifiedTime(60 * 2 * 1000);
 
             await this.blurGrabber(browserPage)
             await this.sleepRandom()
@@ -36,6 +26,71 @@ export class AppService {
         } catch (error) {
             console.error(`An error occurred in startScript: ${error}`);
             throw error;
+        }
+    }
+
+    async startMoonrankScript() {
+        try {
+            const browser = await this.getBrowserInstance(false);
+            const browserPage = await browser.newPage();
+
+            await browserPage.goto('https://moonrank.app/collections');
+
+            await this.sleepForSpecifiedTime(20 * 1000)
+
+            const moonrankGrabber = await this.moonrankGrabber(browserPage)
+
+            if (!moonrankGrabber) {
+                await browserPage.close();
+
+                await this.sleepForSpecifiedTime(60 * 1000)
+
+                await this.startMoonrankScript()
+            }
+            await this.sleepForSpecifiedTime(20 * 1000)
+
+            await browserPage.close();
+
+            await this.sleepForSpecifiedTime(24 * 60 * 60 * 1000)
+            await this.startMoonrankScript()
+
+        } catch (error) {
+            console.error(`An error occurred in startMoonrankScript: ${error}`);
+        }
+    }
+
+    async moonrankGrabber(browserPage) {
+        const chunkSize = 100;
+        try {
+            const collectionsListRaw = await browserPage.evaluate(() => {
+                const script = Array.from(document.querySelectorAll('script'))
+                    .find(el => el.innerText.includes('Alpine.store("collections",'));
+                if (script) {
+                    const startIndex = script.innerText.indexOf('[{');
+                    const endIndex = script.innerText.indexOf('}]))') + 1;
+                    const json = script.innerText.slice(startIndex, endIndex + 1);
+                    return JSON.parse(json);
+                }
+
+                return [];
+            });
+
+            if (collectionsListRaw.length) {
+                const filteredArray = collectionsListRaw.map(item => item.Collection);
+
+                for (let i = 0; i < filteredArray.length; i += chunkSize) {
+                    const chunk = filteredArray.slice(i, i + chunkSize);
+
+                    await this.sleepForSpecifiedTime(5000)
+                    await this.publishSendMoonrankDataEvent(chunk);
+
+                }
+                return true
+
+            }
+            return false
+        } catch (e) {
+            return false
         }
     }
 
@@ -58,7 +113,7 @@ export class AppService {
                     '%7B%22traits%22%3A%5B%5D%7D',
                 );
 
-                await this.publishSendDataEvent({
+                await this.publishSendBlurDataEvent({
                     collectionData: collectionData.collection,
                     nfts: nftsFirstPage.tokens,
                 });
@@ -86,7 +141,7 @@ export class AppService {
                         queryForNextPage = this.getQueryForNextNftPage(
                             tokens[tokens.length - 1],
                         );
-                        await this.publishSendDataEvent({
+                        await this.publishSendBlurDataEvent({
                             collectionData: collectionData.collection,
                             nfts: tokens,
                         });
@@ -97,7 +152,7 @@ export class AppService {
                     }
                 }
 
-                await this.publishSendDataEvent({
+                await this.publishSendBlurDataEvent({
                     parsedCollectionMetadata: {
                         contractAddress,
                         name: collectionData.collection.name,
@@ -216,18 +271,56 @@ export class AppService {
         return encodeURI(`{"cursor":${cursor},"traits":[]}`);
     }
 
-    async publishSendDataEvent(data) {
+    async publishSendBlurDataEvent(data) {
         return this.client.emit('update-nfts-with-parsed-data-eth', {data});
     }
 
+    async publishSendMoonrankDataEvent(data) {
+        return this.client.emit('update-collections-parsed-data-sol', {data});
+    }
+
     async sleepForLogin() {
-        return new Promise((resolve) => setTimeout(resolve, 120000));
-        // return new Promise((resolve) => setTimeout(resolve, 60000));
+        // return new Promise((resolve) => setTimeout(resolve, 120000));
+        return new Promise((resolve) => setTimeout(resolve, 20000));
+    }
+
+    async sleepForSpecifiedTime(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     async sleepRandom() {
         return new Promise((resolve) =>
             setTimeout(resolve, Math.random() * (5000 - 2000) + 2000),
         );
+    }
+
+    async getBrowserInstance(metamask?: boolean): Promise<Browser> {
+        if (!this.browserInstance) {
+            this.browserInstance = await this.browser(metamask);
+        }
+        return this.browserInstance;
+    }
+
+
+    private async browser(metamask?: boolean): Promise<Browser> {
+        if (metamask) {
+            const pathToExtension = path.resolve(
+                process.cwd(),
+                this.EXTENSION_METAMASK_DIR,
+            );
+            return await puppeteer.launch({
+                executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+                args: [
+                    `--disable-extensions-except=${pathToExtension}`,
+                    `--load-extension=${pathToExtension}`,
+                ],
+                headless: false,
+            });
+        }
+
+        return await puppeteer.launch({
+            executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+            headless: false,
+        });
     }
 }
