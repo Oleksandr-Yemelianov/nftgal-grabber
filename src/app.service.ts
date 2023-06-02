@@ -155,6 +155,7 @@ export class AppService {
                 await this.publishSendBlurDataEvent({
                     parsedCollectionMetadata: {
                         contractAddress,
+                        totalSupply: collectionData.collection.totalSupply,
                         name: collectionData.collection.name,
                         logoUrl: collectionData.collection.imageUrl
                     }
@@ -277,11 +278,6 @@ export class AppService {
 
     async publishSendMoonrankDataEvent(data) {
         return this.client.emit('update-collections-parsed-data-sol', {data});
-    }
-
-    async sleepForLogin() {
-        // return new Promise((resolve) => setTimeout(resolve, 120000));
-        return new Promise((resolve) => setTimeout(resolve, 20000));
     }
 
     async sleepForSpecifiedTime(ms) {
