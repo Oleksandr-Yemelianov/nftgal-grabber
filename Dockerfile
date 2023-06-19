@@ -20,7 +20,8 @@ FROM node:18-alpine as start_prod
 WORKDIR /app
 RUN apk update && apk add --no-cache python3 g++ make
 COPY ./package*.json ./
-RUN npm install --production
+RUN npm install --omit=dev
+COPY ./.env .
 COPY --from=build /otp/app/dist ./dist
 EXPOSE 3000
 CMD [ "npm", "run", "start:prod" ]
