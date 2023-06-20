@@ -15,6 +15,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
           queueOptions: {
             durable: false,
           },
+          heartbeatInterval: 3600000, // 1 hour
         },
       },
     ]),
