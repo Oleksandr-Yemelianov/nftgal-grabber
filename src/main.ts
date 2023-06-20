@@ -18,7 +18,6 @@ async function bootstrap() {
       queueOptions: {
         durable: false,
       },
-      heartbeatInterval: 3600000, // 1 hour
     },
   });
   await app.listen(8000);
